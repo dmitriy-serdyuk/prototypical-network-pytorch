@@ -43,5 +43,5 @@ class CategoriesSampler:
                 batch = torch.stack(batch).t().reshape(-1)
                 yield batch
         else:
-            for batch in range(self.batches):
+            for batch in self.batches:
                 yield batch
