@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--test-way', type=int, default=5)
     parser.add_argument('--save-path', default='./save/proto-1')
     parser.add_argument('--device', default='cpu')
-    parser.add_argument('--no-permute', action='store_true', dest='permute')
+    parser.add_argument('--no-permute', action='store_false', dest='permute')
     args = parser.parse_args()
     pprint(vars(args))
 
