@@ -6,11 +6,6 @@ import pprint
 import torch
 
 
-def set_gpu(x):
-    os.environ['CUDA_VISIBLE_DEVICES'] = x
-    print('using gpu:', x)
-
-
 def ensure_path(path):
     if os.path.exists(path):
         if input('{} exists, remove? ([y]/n)'.format(path)) != 'n':
@@ -36,7 +31,7 @@ class Averager():
 
 def count_acc(logits, label):
     pred = torch.argmax(logits, dim=1)
-    return (pred == label).type(torch.cuda.FloatTensor).mean().item()
+    return (pred == label).to(torch.float32).mean().item()
 
 
 def dot_metric(a, b):

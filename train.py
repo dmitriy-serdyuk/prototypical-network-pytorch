@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import os.path as osp
 
@@ -8,7 +9,7 @@ from torch.utils.data import DataLoader
 from mini_imagenet import MiniImageNet
 from samplers import CategoriesSampler
 from convnet import Convnet
-from utils import pprint, set_gpu, ensure_path, Averager, Timer, count_acc, euclidean_metric
+from utils import pprint, ensure_path, Averager, Timer, count_acc, euclidean_metric
 
 
 if __name__ == '__main__':
@@ -20,26 +21,29 @@ if __name__ == '__main__':
     parser.add_argument('--train-way', type=int, default=30)
     parser.add_argument('--test-way', type=int, default=5)
     parser.add_argument('--save-path', default='./save/proto-1')
-    parser.add_argument('--gpu', default='0')
+    parser.add_argument('--device', default='cpu')
+    parser.add_argument('--no-permute', action='store_true', dest='permute')
     args = parser.parse_args()
     pprint(vars(args))
 
-    set_gpu(args.gpu)
+    device = torch.device(args.device)
     ensure_path(args.save_path)
 
     trainset = MiniImageNet('train')
     train_sampler = CategoriesSampler(trainset.label, 100,
-                                      args.train_way, args.shot + args.query)
+                                      args.train_way, args.shot + args.query,
+                                      permute=args.permute)
     train_loader = DataLoader(dataset=trainset, batch_sampler=train_sampler,
                               num_workers=8, pin_memory=True)
 
     valset = MiniImageNet('val')
     val_sampler = CategoriesSampler(valset.label, 400,
-                                    args.test_way, args.shot + args.query)
+                                    args.test_way, args.shot + args.query,
+                                    permute=args.permute)
     val_loader = DataLoader(dataset=valset, batch_sampler=val_sampler,
                             num_workers=8, pin_memory=True)
 
-    model = Convnet().cuda()
+    model = Convnet().to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
@@ -47,13 +51,14 @@ if __name__ == '__main__':
     def save_model(name):
         torch.save(model.state_dict(), osp.join(args.save_path, name + '.pth'))
     
-    trlog = {}
-    trlog['args'] = vars(args)
-    trlog['train_loss'] = []
-    trlog['val_loss'] = []
-    trlog['train_acc'] = []
-    trlog['val_acc'] = []
-    trlog['max_acc'] = 0.0
+    trlog = dict(
+        args=vars(args),
+        train_loss=[],
+        val_loss=[],
+        train_acc=[],
+        val_acc=[],
+        max_acc=0.0,
+    )
 
     timer = Timer()
 
@@ -66,7 +71,7 @@ if __name__ == '__main__':
         ta = Averager()
 
         for i, batch in enumerate(train_loader, 1):
-            data, _ = [_.cuda() for _ in batch]
+            data, _ = [_.to(device) for _ in batch]
             p = args.shot * args.train_way
             data_shot, data_query = data[:p], data[p:]
 
@@ -74,7 +79,7 @@ if __name__ == '__main__':
             proto = proto.reshape(args.shot, args.train_way, -1).mean(dim=0)
 
             label = torch.arange(args.train_way).repeat(args.query)
-            label = label.type(torch.cuda.LongTensor)
+            label = label.to(device)
 
             logits = euclidean_metric(model(data_query), proto)
             loss = F.cross_entropy(logits, label)
@@ -88,8 +93,6 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
-            proto = None; logits = None; loss = None
 
         tl = tl.item()
         ta = ta.item()
@@ -116,8 +119,6 @@ if __name__ == '__main__':
 
             vl.add(loss.item())
             va.add(acc)
-            
-            proto = None; logits = None; loss = None
 
         vl = vl.item()
         va = va.item()
