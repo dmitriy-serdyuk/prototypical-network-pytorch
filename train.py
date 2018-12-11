@@ -73,15 +73,15 @@ if __name__ == '__main__':
         for i, batch in enumerate(train_loader, 1):
             data, _ = [_.to(device) for _ in batch]
             p = args.shot * args.train_way
-            data_shot, data_query = data[:p], data[p:]
+            embedded = model(data)
+            embedded_shot, embedded_query = data[:p], data[p:]
 
-            proto = model(data_shot)
-            proto = proto.reshape(args.shot, args.train_way, -1).mean(dim=0)
+            proto = embedded_shot.reshape(args.shot, args.train_way, -1).mean(dim=0)
 
             label = torch.arange(args.train_way).repeat(args.query)
             label = label.to(device)
 
-            logits = euclidean_metric(model(data_query), proto)
+            logits = euclidean_metric(embedded_query, proto)
             loss = F.cross_entropy(logits, label)
             acc = count_acc(logits, label)
             print('epoch {}, train {}/{}, loss={:.4f} acc={:.4f}'
@@ -141,4 +141,3 @@ if __name__ == '__main__':
             save_model('epoch-{}'.format(epoch))
 
         print('ETA:{}/{}'.format(timer.measure(), timer.measure(epoch / args.max_epoch)))
-
