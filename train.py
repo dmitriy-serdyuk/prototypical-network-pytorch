@@ -22,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--test-way', type=int, default=5)
     parser.add_argument('--save-path', default='./save/proto-1')
     parser.add_argument('--device', default='cpu')
+    parser.add_argument('--n-batches', type=int, default=100)
     parser.add_argument('--no-permute', action='store_false', dest='permute')
     args = parser.parse_args()
     pprint(vars(args))
@@ -30,8 +31,10 @@ if __name__ == '__main__':
     ensure_path(args.save_path)
 
     trainset = MiniImageNet('train')
-    train_sampler = CategoriesSampler(trainset.label, 100,
-                                      args.train_way, args.shot + args.query,
+    train_sampler = CategoriesSampler(trainset.label,
+                                      n_batches=args.n_batches,
+                                      ways=args.train_way,
+                                      n_images=args.shot + args.query,
                                       permute=args.permute)
     train_loader = DataLoader(dataset=trainset, batch_sampler=train_sampler,
                               num_workers=8, pin_memory=True)
@@ -74,12 +77,11 @@ if __name__ == '__main__':
             data, _ = [_.to(device) for _ in batch]
             p = args.shot * args.train_way
             embedded = model(data)
-            embedded_shot, embedded_query = data[:p], data[p:]
+            embedded_shot, embedded_query = embedded[:p], embedded[p:]
 
             proto = embedded_shot.reshape(args.shot, args.train_way, -1).mean(dim=0)
 
-            label = torch.arange(args.train_way).repeat(args.query)
-            label = label.to(device)
+            label = torch.arange(args.train_way).repeat(args.query).to(device)
 
             logits = euclidean_metric(embedded_query, proto)
             loss = F.cross_entropy(logits, label)

@@ -3,10 +3,10 @@ import numpy as np
 
 
 class CategoriesSampler:
-    def __init__(self, label, n_batch, n_cls, n_per, permute=True):
-        self.n_batch = n_batch
-        self.n_cls = n_cls
-        self.n_per = n_per
+    def __init__(self, label, n_batches, ways, n_images, permute=True):
+        self.n_batch = n_batches
+        self.n_cls = ways
+        self.n_per = n_images
         self.permute = permute
 
         label = np.array(label)
