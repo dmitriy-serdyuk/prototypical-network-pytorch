@@ -15,7 +15,7 @@ class MiniImageNet(Dataset):
         lines = [x.strip() for x in open(csv_path, 'r').readlines()][1:]
 
         data = []
-        label = []
+        labels = []
         lb = -1
 
         self.wnids = []
@@ -27,10 +27,10 @@ class MiniImageNet(Dataset):
                 self.wnids.append(wnid)
                 lb += 1
             data.append(path)
-            label.append(lb)
+            labels.append(lb)
 
         self.data = data
-        self.label = label
+        self.label = labels
 
         self.transform = transforms.Compose([
             transforms.Resize(84),
@@ -44,7 +44,7 @@ class MiniImageNet(Dataset):
         return len(self.data)
 
     def __getitem__(self, i):
-        path, label = self.data[i], self.label[i]
+        path, label = self.data[i], self.labels[i]
         image = self.transform(Image.open(path).convert('RGB'))
         return image, label
 
